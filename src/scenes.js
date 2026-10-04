@@ -24,7 +24,7 @@ export const SCENES = {
   unequal: {
     label: 'Unequal pair',
     note: 'A +2 and a −1. Only part of the bigger charge’s flux lands on the smaller one; the rest escapes. The null point now sits outside, beyond the weaker charge.',
-    charges: [{ x: -1.5, y: 0, q: 2 }, { x: 1.5, y: 0, q: -1 }],
+    charges: [{ x: -1, y: 0, q: 2 }, { x: 1, y: 0, q: -1 }],
   },
   single: {
     label: 'Single charge',
@@ -48,7 +48,7 @@ export const SCENES = {
   },
   triangle: {
     label: 'Triangle',
-    note: 'Three like charges. Their fields cancel at the centre, and the lines that head there split three ways. Switch between point and line charges and watch the equipotentials around the centre change shape.',
+    note: 'Three like charges. Their fields cancel at the centre. For point charges three more null points sit between the centre and the sides; switch to line charges and they merge into the centre.',
     charges: ring(3, 2, 1, Math.PI / 2),
   },
   ring: {
