@@ -89,6 +89,26 @@ test('a line aimed straight at the null point between like charges stalls there'
   assert.ok(Math.abs(l.points[n - 2]) < 0.05);
 });
 
+test('lineTally separates lines that land, escape and stall', () => {
+  const lines = [
+    { end: 'charge', charge: 1 },
+    { end: 'charge', charge: 1 },
+    { end: 'escape', charge: -1 },
+    { end: 'limit', charge: -1 },
+    { end: 'stall', charge: -1 },
+  ];
+  assert.deepEqual(lineTally(lines, 2), { ends: [0, 2], open: 2, stalled: 1 });
+});
+
+test('a like pair aims one line from each charge along the axis into the null point', () => {
+  const pair = [{ x: -1.5, y: 0, q: 1 }, { x: 1.5, y: 0, q: 1 }];
+  for (const mode of ['point', 'line']) {
+    const { open, stalled } = lineTally(traceAll(pair, mode, WIDE, { density: 8 }), 2);
+    assert.equal(stalled, 2, mode);
+    assert.equal(open, 14, mode);
+  }
+});
+
 test('reversePoints swaps point order but keeps each pair intact', () => {
   assert.deepEqual(reversePoints([1, 2, 3, 4, 5, 6]), [5, 6, 3, 4, 1, 2]);
 });

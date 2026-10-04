@@ -142,14 +142,17 @@ export function reversePoints(points) {
   return out;
 }
 
-// How many traced lines end on each charge (or start, for lines seeded from
-// negative charges). Index -1 collects lines that escape or stall.
+// How many traced lines end on each charge (or start there, for lines
+// seeded from negative charges), how many run off to infinity, and how many
+// stop at a null point, where the field gives them no direction.
 export function lineTally(lines, count) {
   const ends = new Array(count).fill(0);
   let open = 0;
+  let stalled = 0;
   for (const l of lines) {
     if (l.end === 'charge') ends[l.charge]++;
+    else if (l.end === 'stall') stalled++;
     else open++;
   }
-  return { ends, open };
+  return { ends, open, stalled };
 }
