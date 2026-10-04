@@ -231,3 +231,27 @@ export function drawProbe(ctx, view, x, y, ex, ey) {
   ctx.fill();
   ctx.restore();
 }
+
+// The Gaussian surface: solid warm where the field leaves, dashed cool where
+// it enters, with a square handle at the centre for moving it.
+export function drawGaussSurface(ctx, view, surface, signs) {
+  const [cx, cy] = view.toScreen(surface.x, surface.y);
+  const rpx = surface.r * view.scale;
+  const n = signs.length;
+  ctx.save();
+  ctx.lineWidth = 2.5;
+  for (let k = 0; k < n; k++) {
+    // World angles run anticlockwise; on screen y points down.
+    const a0 = -((2 * Math.PI * k) / n);
+    const a1 = -((2 * Math.PI * (k + 1)) / n);
+    ctx.strokeStyle = signs[k] > 0 ? '#ffb38a' : signs[k] < 0 ? '#8cc4ff' : '#c9d1df';
+    ctx.setLineDash(signs[k] < 0 ? [4, 3] : []);
+    ctx.beginPath();
+    ctx.arc(cx, cy, rpx, a1, a0);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(255, 210, 122, 0.9)';
+  ctx.fillRect(cx - 5, cy - 5, 10, 10);
+  ctx.restore();
+}
