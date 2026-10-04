@@ -26,7 +26,7 @@
           <button id="clear" type="button">Clear all</button>
         </div>
       </div>
-      <p class="hint">Click empty space to place a charge, drag a charge to move it, right-click or <kbd>Shift</kbd>-click it to remove it. With the picture focused: arrow keys move the selected charge (<kbd>Shift</kbd> for bigger steps), <kbd>[</kbd> and <kbd>]</kbd> shrink and grow it, <kbd>F</kbd> flips its sign, <kbd>Delete</kbd> removes it, <kbd>.</kbd> selects the next one, <kbd>M</kbd> switches point and line charges.</p>
+      <p class="hint">Click empty space to place a charge, drag a charge to move it, right-click or <kbd>Shift</kbd>-click it to remove it. With the picture focused: arrow keys move the selected charge (<kbd>Shift</kbd> for bigger steps), <kbd>[</kbd> and <kbd>]</kbd> shrink and grow it, <kbd>F</kbd> flips its sign, <kbd>Delete</kbd> removes it, <kbd>.</kbd> selects the next one, <kbd>M</kbd> switches point and line charges, <kbd>G</kbd> shows or hides the Gaussian surface.</p>
       <p id="probe" class="probe" aria-live="off">Point at the picture to read the potential and field there.</p>
       <p id="tally" class="note"></p>
     </section>
@@ -60,6 +60,21 @@
           <button id="flip" type="button" disabled>Flip sign</button>
           <button id="remove" type="button" disabled>Remove</button>
         </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Gauss's law</legend>
+        <label class="check"><input id="gauss-on" type="checkbox" /> Show a Gaussian surface</label>
+        <div class="slider">
+          <label for="radius">Radius</label>
+          <input id="radius" type="range" />
+          <output for="radius" id="radius-out"></output>
+        </div>
+        <div class="buttons spaced">
+          <button id="gauss-centre" type="button" disabled>Centre on selected charge</button>
+        </div>
+        <p id="gauss-text" class="note" aria-live="polite"></p>
+        <p class="note">Drag the square handle to move the surface and its rim to resize it. Solid rim: the field leaves; dashed rim: it enters.</p>
       </fieldset>
 
       <fieldset>

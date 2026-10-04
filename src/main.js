@@ -4,6 +4,7 @@ import { fieldAt, potentialAt, potentialGrid, totalCharge } from './field.js';
 import { traceAll, lineTally } from './lines.js';
 import { contourLevels, potentialRange, marchingSquares } from './contours.js';
 import { findNullPoints } from './neutral.js';
+import { gaussReport, outwardSigns } from './gauss.js';
 import { SCENES, SCENE_ORDER, sceneCharges } from './scenes.js';
 import { RANGES, LAYERS, MAX_CHARGES, CHARGE, clampSettings, clampCharge, toHash, fromHash, defaults } from './params.js';
 import {
@@ -14,6 +15,7 @@ import {
   drawCharges,
   drawNulls,
   drawProbe,
+  drawGaussSurface,
   chargeRadius,
   formatNumber,
 } from './render.js';
@@ -31,7 +33,7 @@ let settings = fromHash(location.hash);
 let selected = -1;
 let newSign = 1;
 let newSize = 1;
-let drag = null; // { index, dx, dy, pointerId }
+let drag = null; // { kind: 'charge' | 'move' | 'resize', index, dx, dy, pointerId }
 let probe = null; // world point under the pointer
 let view = makeView(16, 9);
 let picture = null; // computed layers for the current settings and size
@@ -55,7 +57,10 @@ function compute() {
   const colorScale = Math.max(Math.abs(lo), Math.abs(hi), settings.step) * 0.6;
   const image = new ImageData(nx, ny);
   paintPotential(image, grid, nx, ny, colorScale);
-  picture = { box, nx, ny, contours, lines, nulls, image, bitmap: null };
+  const gauss = settings.gauss.on
+    ? { report: gaussReport(charges, mode, settings.gauss), signs: outwardSigns(charges, settings.gauss, mode) }
+    : null;
+  picture = { box, nx, ny, contours, lines, nulls, gauss, image, bitmap: null };
   createImageBitmap(image).then((bitmap) => {
     if (picture && picture.image === image) {
       picture.bitmap = bitmap;
@@ -80,6 +85,7 @@ function draw() {
   if (layers.contours) drawContours(ctx, view, picture.contours, picture.box, picture.nx, picture.ny);
   if (layers.lines) drawFieldLines(ctx, view, picture.lines);
   if (layers.nulls) drawNulls(ctx, view, picture.nulls);
+  if (picture.gauss) drawGaussSurface(ctx, view, settings.gauss, picture.gauss.signs);
   drawCharges(ctx, view, settings.charges, selected);
   if (probe && !drag) {
     const [ex, ey] = fieldAt(settings.charges, settings.mode, probe[0], probe[1]);
@@ -116,6 +122,7 @@ function updateText() {
   }
   $('status').textContent = parts.join(' · ');
   $('tally').textContent = tallyText();
+  $('gauss-text').textContent = gaussText();
   updateProbeText();
   updateSelectionControls();
 }
@@ -150,6 +157,19 @@ function tallyText() {
   return `${picture.lines.length} lines ${verb} ${describeGroup(sources)}: ${parts.join(', ')}.`;
 }
 
+function gaussText() {
+  if (!picture?.gauss) return '';
+  const { flux, factor, enclosed, inside, fluxOutside, near } = picture.gauss.report;
+  const unit = settings.mode === 'line' ? '2π' : '4π';
+  const what = settings.mode === 'line' ? 'through the loop' : 'out of the sphere whose equator is drawn';
+  const held = inside === 0 ? 'no charge' : `${inside === 1 ? '1 charge' : `${inside} charges`} totalling ${signed(enclosed)}`;
+  // Quadrature leaves rounding dust where the exact answer is zero.
+  const show = (v) => formatNumber(Math.abs(v) < 1e-9 ? 0 : v);
+  let text = `Flux ${what}: ${show(flux)} = ${unit} × ${show(flux / factor)}. Inside: ${held}. Charges outside contribute ${show(fluxOutside)}.`;
+  if (near) text += ' A charge sits on the surface, so the flux there is ill-defined and the numbers are not reliable.';
+  return text;
+}
+
 function updateProbeText() {
   const el = $('probe');
   if (!probe) return;
@@ -170,6 +190,7 @@ function updateSelectionControls() {
   const size = c ? Math.abs(c.q) : newSize;
   $('size').value = String(size);
   $('size-out').textContent = c ? signed(c.q) : String(size);
+  $('gauss-centre').disabled = !c;
 }
 
 // --- editing -----------------------------------------------------------------
@@ -186,6 +207,16 @@ function chargeAt(px, py) {
     if (Math.hypot(px - sx, py - sy) <= chargeRadius(c.q) + 3) return i;
   }
   return -1;
+}
+
+// Which part of the Gaussian surface is under a screen point, if any.
+function surfacePartAt(px, py) {
+  const g = settings.gauss;
+  if (!g.on) return null;
+  const [cx, cy] = view.toScreen(g.x, g.y);
+  if (Math.abs(px - cx) <= 8 && Math.abs(py - cy) <= 8) return 'move';
+  if (Math.abs(Math.hypot(px - cx, py - cy) - g.r * view.scale) <= 7) return 'resize';
+  return null;
 }
 
 function removeCharge(i) {
@@ -216,6 +247,14 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   if (e.button !== 0) return;
   canvas.focus();
+  const part = hit < 0 ? surfacePartAt(px, py) : null;
+  if (part) {
+    const [cx, cy] = view.toScreen(settings.gauss.x, settings.gauss.y);
+    drag = { kind: part, dx: px - cx, dy: py - cy, pointerId: e.pointerId };
+    canvas.setPointerCapture(e.pointerId);
+    canvas.classList.add('dragging');
+    return;
+  }
   let index = hit;
   if (index < 0) {
     if (settings.charges.length >= MAX_CHARGES) {
@@ -231,7 +270,7 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   const c = settings.charges[index];
   const [sx, sy] = view.toScreen(c.x, c.y);
-  drag = { index, dx: px - sx, dy: py - sy, pointerId: e.pointerId };
+  drag = { kind: 'charge', index, dx: px - sx, dy: py - sy, pointerId: e.pointerId };
   selected = index;
   canvas.setPointerCapture(e.pointerId);
   canvas.classList.add('dragging');
@@ -240,6 +279,20 @@ canvas.addEventListener('pointerdown', (e) => {
 
 canvas.addEventListener('pointermove', (e) => {
   const [px, py] = localPoint(e);
+  if (drag && e.pointerId === drag.pointerId && drag.kind !== 'charge') {
+    const g = settings.gauss;
+    if (drag.kind === 'move') {
+      const [x, y] = view.toWorld(px - drag.dx, py - drag.dy);
+      Object.assign(g, { x, y });
+    } else {
+      const [x, y] = view.toWorld(px, py);
+      g.r = Math.hypot(x - g.x, y - g.y);
+    }
+    settings = clampSettings(settings);
+    syncGaussControls();
+    refresh({ hash: false });
+    return;
+  }
   if (drag && e.pointerId === drag.pointerId) {
     const [x, y] = view.toWorld(px - drag.dx, py - drag.dy);
     const c = clampCharge({ x, y, q: settings.charges[drag.index].q });
@@ -248,7 +301,7 @@ canvas.addEventListener('pointermove', (e) => {
     return;
   }
   probe = view.toWorld(px, py);
-  canvas.classList.toggle('over-charge', chargeAt(px, py) >= 0);
+  canvas.classList.toggle('over-charge', chargeAt(px, py) >= 0 || surfacePartAt(px, py) !== null);
   refresh({ recompute: false, hash: false });
 });
 
@@ -311,6 +364,10 @@ canvas.addEventListener('keydown', (e) => {
     if (n) select((selected + 1) % n);
   } else if (e.key === 'Escape') {
     select(-1);
+  } else if (e.key === 'g' || e.key === 'G') {
+    settings.gauss.on = !settings.gauss.on;
+    syncGaussControls();
+    edited();
   } else if (e.key === 'm' || e.key === 'M') {
     settings.mode = settings.mode === 'point' ? 'line' : 'point';
     syncControls();
@@ -336,7 +393,16 @@ function setupSlider(id, key) {
   });
 }
 
+function syncGaussControls() {
+  const g = settings.gauss;
+  $('gauss-on').checked = g.on;
+  $('radius').value = g.r;
+  $('radius-out').textContent = String(g.r);
+  $('radius').disabled = !g.on;
+}
+
 function syncControls() {
+  syncGaussControls();
   $('scene').value = settings.scene;
   $('note').textContent = SCENES[settings.scene].note;
   for (const r of document.querySelectorAll('input[name="mode"]')) r.checked = r.value === settings.mode;
@@ -362,6 +428,7 @@ $('scene').addEventListener('change', () => {
   settings.density = keep.density;
   settings.step = keep.step;
   settings.layers = keep.layers;
+  settings.gauss = keep.gauss;
   selected = -1;
   syncControls();
   edited();
@@ -410,6 +477,29 @@ $('clear').addEventListener('click', () => {
 
 setupSlider('density', 'density');
 setupSlider('step', 'step');
+
+$('radius').min = RANGES.radius.min;
+$('radius').max = RANGES.radius.max;
+$('radius').step = RANGES.radius.step;
+$('radius').addEventListener('input', () => {
+  settings.gauss.r = Number($('radius').value);
+  syncGaussControls();
+  edited();
+});
+
+$('gauss-on').addEventListener('change', () => {
+  settings.gauss.on = $('gauss-on').checked;
+  syncGaussControls();
+  edited();
+});
+
+$('gauss-centre').addEventListener('click', () => {
+  const c = settings.charges[selected];
+  if (!c) return;
+  Object.assign(settings.gauss, { on: true, x: c.x, y: c.y });
+  syncGaussControls();
+  edited();
+});
 
 for (const k of Object.keys(LAYERS)) {
   $(`layer-${k}`).addEventListener('change', (e) => {
