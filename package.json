@@ -1,0 +1,25 @@
+{
+  "name": "fieldlines",
+  "version": "0.1.0",
+  "description": "Electric field lines and equipotentials in the browser: place and drag charges, watch the field reshape, and find the points where it vanishes.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "serve": "node scripts/serve.js"
+  },
+  "keywords": [
+    "electrostatics",
+    "electric-field",
+    "field-lines",
+    "equipotential",
+    "physics-simulation",
+    "canvas"
+  ],
+  "license": "MIT",
+  "author": "Jiayi Fan",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fushanbobfan/fieldlines.git"
+  },
+  "private": false
+}
