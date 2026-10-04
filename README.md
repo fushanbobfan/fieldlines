@@ -60,6 +60,17 @@ number of lines on a charge an exact measure of its flux: switch the
 unequal pair to line charges and close to half the +2's lines land on the
 −1.
 
+**Gauss's law.** Tick *Show a Gaussian surface* and drag its square
+handle around. The panel reports the flux out through it as a multiple of
+2π (line charges, where the circle is a loop) or 4π (point charges, where
+the circle is the equator of a sphere), and that multiple matches the
+charge inside to three decimals. Drag the surface so it holds both
+charges of the dipole and the flux drops to zero even though the field on
+the rim is anything but. The rim is drawn solid where the field leaves and
+dashed where it enters: a charge outside makes it enter on the near side
+and leave on the far side, and the panel shows those contributions
+cancelling.
+
 ## Controls
 
 - Click empty space to place a charge with the chosen sign and size.
@@ -67,7 +78,8 @@ unequal pair to line charges and close to half the +2's lines land on the
 - With the picture focused: arrow keys move the selected charge (Shift for
   bigger steps), `[` and `]` shrink and grow it, `F` flips its sign,
   `Delete` removes it, `.` selects the next one, `Escape` deselects, `M`
-  switches between point and line charges.
+  switches between point and line charges, `G` shows or hides the
+  Gaussian surface.
 - The size slider sets the size of new charges, or of the selected one.
 - Lines per unit charge sets the line density; the potential step sets the
   potential difference between neighbouring equipotentials, so they crowd
@@ -99,12 +111,24 @@ faster than linearly (the centre of four like line charges on a square,
 where it grows as r³) has a singular Jacobian, so the residual, not the
 step size, decides whether a point counts.
 
+The Gauss panel (`src/gauss.js`) integrates E·n over the surface for each
+charge separately. Around a loop it uses the trapezoid rule on 1024 points,
+which converges very fast for a smooth periodic integrand. Over a sphere
+it integrates one hemisphere and doubles it, since the charges lie in its
+plane of symmetry, with Gauss–Legendre nodes in the cosine of the polar
+angle mapped so they crowd towards the equator, where charges near the
+surface make the integrand sharp. Charges within 0.1 units of the surface
+are flagged, because there the flux is ill-defined and the quadrature
+cannot be trusted.
+
 ## Accessibility
 
 The picture is keyboard operable: focus it with Tab, then select, move,
-resize, flip and remove charges with the keys above. The status line and
-the line tally are plain text under the picture, and the status line is
-announced when it changes. Every control is a native input with a label.
+resize, flip and remove charges with the keys above. The status line, the
+line tally and the Gauss readout are plain text, and the status line and
+Gauss readout are announced when they change. The Gaussian surface can be
+placed without a pointer: centre it on the selected charge and set its
+radius with the slider. Every control is a native input with a label.
 
 ## License
 
