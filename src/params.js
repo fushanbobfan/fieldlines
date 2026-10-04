@@ -10,6 +10,7 @@ export const CHARGE = { min: 0.25, max: 5, step: 0.25 };
 export const RANGES = {
   density: { min: 2, max: 20, step: 1 },
   step: { min: 0.05, max: 2, step: 0.05 },
+  radius: { min: 0.25, max: 6, step: 0.05 },
 };
 
 export const LAYERS = { lines: 'l', contours: 'e', potential: 'p', nulls: 'n' };
@@ -23,6 +24,7 @@ export function defaults(scene = 'dipole') {
     density: 8,
     step: 0.25,
     layers: { lines: true, contours: true, potential: true, nulls: true },
+    gauss: { on: false, x: 0, y: 0, r: 2 },
   };
 }
 
@@ -42,6 +44,16 @@ export function clampCharge(c) {
   return { x: pos(x, VIEW_HALF.x), y: pos(y, VIEW_HALF.y), q: Math.sign(q) * mag };
 }
 
+export function clampGauss(g, fallback) {
+  const centre = clampCharge({ x: g?.x, y: g?.y, q: 1 });
+  return {
+    on: typeof g?.on === 'boolean' ? g.on : fallback.on,
+    x: centre ? centre.x : fallback.x,
+    y: centre ? centre.y : fallback.y,
+    r: snap(g?.r, RANGES.radius, fallback.r),
+  };
+}
+
 export function clampSettings(s) {
   const base = defaults(s?.scene);
   const charges = Array.isArray(s?.charges) ? s.charges.map(clampCharge).filter(Boolean).slice(0, MAX_CHARGES) : base.charges;
@@ -54,6 +66,7 @@ export function clampSettings(s) {
     density: snap(s?.density, RANGES.density, base.density),
     step: snap(s?.step, RANGES.step, base.step),
     layers,
+    gauss: clampGauss(s?.gauss, base.gauss),
   };
 }
 
@@ -93,6 +106,7 @@ export function toHash(settings) {
     .map(([, f]) => f)
     .join('');
   if (Object.keys(LAYERS).some((k) => s.layers[k] !== base.layers[k])) p.set('f', flags || '-');
+  if (s.gauss.on) p.set('g', `${num(s.gauss.x)},${num(s.gauss.y)},${num(s.gauss.r)}`);
   return p.toString();
 }
 
@@ -107,6 +121,10 @@ export function fromHash(hash) {
   if (p.has('f')) {
     const f = p.get('f');
     s.layers = Object.fromEntries(Object.entries(LAYERS).map(([k, letter]) => [k, f.includes(letter)]));
+  }
+  if (p.has('g')) {
+    const [x, y, r] = p.get('g').split(',').map(Number);
+    s.gauss = { on: true, x, y, r };
   }
   return clampSettings(s);
 }

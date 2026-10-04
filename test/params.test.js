@@ -75,6 +75,16 @@ test('an empty plane and all layers off survive the round trip', () => {
   assert.deepEqual(back.layers, s.layers);
 });
 
+test('the Gaussian surface is clamped and only written to links while shown', () => {
+  const s = defaults('dipole');
+  assert.equal(toHash(s), 's=dipole');
+  s.gauss = { on: true, x: -1.5, y: 0.333, r: 99 };
+  const hash = toHash(s);
+  assert.equal(hash, 's=dipole&g=-1.5%2C0.33%2C6');
+  assert.deepEqual(fromHash(hash).gauss, { on: true, x: -1.5, y: 0.33, r: 6 });
+  assert.deepEqual(fromHash('s=dipole&g=a,b,c').gauss, { on: true, x: 0, y: 0, r: 2 });
+});
+
 test('fromHash tolerates garbage', () => {
   assert.deepEqual(fromHash(''), defaults('dipole'));
   assert.deepEqual(fromHash('#s=ring&d=abc&v=-4'), { ...defaults('ring'), step: 0.05 });
