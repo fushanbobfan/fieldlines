@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fieldlines</title>
+  <meta name="description" content="Electric field lines and equipotentials in the browser: place and drag charges, watch the field reshape, and find the points where it vanishes." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230b0f17'/%3E%3Cpath d='M4 8C6 3 10 3 12 8M4 8C6 13 10 13 12 8M4 8h8' stroke='%23e3e8f2' stroke-width='1' fill='none'/%3E%3Ccircle cx='4' cy='8' r='2' fill='%23d9573b'/%3E%3Ccircle cx='12' cy='8' r='2' fill='%232f76c9'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Fieldlines</h1>
+    <p class="subtitle">Place electric charges and see the field they make: lines that show which way a positive test charge is pushed, equipotentials that show where it takes no work to move, and the points where every push cancels. Drag a charge and the whole picture follows.</p>
+  </header>
+
+  <main>
+    <section class="stage" aria-label="Field picture">
+      <div class="canvas-wrap">
+        <canvas id="plot" role="img" tabindex="0" aria-label="Electric field lines and equipotentials of the charges"></canvas>
+      </div>
+      <div class="stage-bar">
+        <p id="status" class="status" aria-live="polite"></p>
+        <div class="buttons">
+          <button id="reset" type="button">Reset scene</button>
+          <button id="clear" type="button">Clear all</button>
+        </div>
+      </div>
+      <p class="hint">Click empty space to place a charge, drag a charge to move it, right-click or <kbd>Shift</kbd>-click it to remove it. With the picture focused: arrow keys move the selected charge (<kbd>Shift</kbd> for bigger steps), <kbd>[</kbd> and <kbd>]</kbd> shrink and grow it, <kbd>F</kbd> flips its sign, <kbd>Delete</kbd> removes it, <kbd>.</kbd> selects the next one, <kbd>M</kbd> switches point and line charges.</p>
+      <p id="probe" class="probe" aria-live="off">Point at the picture to read the potential and field there.</p>
+      <p id="tally" class="note"></p>
+    </section>
+
+    <section class="controls" aria-label="Controls">
+      <fieldset>
+        <legend>Scene</legend>
+        <label class="row" for="scene">Start from
+          <select id="scene"></select>
+        </label>
+        <p id="note" class="note"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Charges</legend>
+        <div class="segmented" role="radiogroup" aria-label="Geometry">
+          <label><input type="radio" name="mode" value="point" /> Point charges</label>
+          <label><input type="radio" name="mode" value="line" /> Line charges</label>
+        </div>
+        <p id="mode-note" class="note"></p>
+        <div class="segmented" role="radiogroup" aria-label="Sign of new charges">
+          <label><input type="radio" name="sign" value="1" checked /> New: positive</label>
+          <label><input type="radio" name="sign" value="-1" /> New: negative</label>
+        </div>
+        <div class="slider">
+          <label for="size" id="size-label">Size of new charges</label>
+          <input id="size" type="range" min="0.25" max="5" step="0.25" value="1" />
+          <output for="size" id="size-out"></output>
+        </div>
+        <div class="buttons spaced">
+          <button id="flip" type="button" disabled>Flip sign</button>
+          <button id="remove" type="button" disabled>Remove</button>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Picture</legend>
+        <label class="check"><input id="layer-lines" type="checkbox" /> Field lines</label>
+        <label class="check"><input id="layer-contours" type="checkbox" /> Equipotentials</label>
+        <label class="check"><input id="layer-potential" type="checkbox" /> Potential shading</label>
+        <label class="check"><input id="layer-nulls" type="checkbox" /> Null points</label>
+        <div class="slider">
+          <label for="density">Lines per unit charge</label>
+          <input id="density" type="range" />
+          <output for="density" id="density-out"></output>
+        </div>
+        <div class="slider">
+          <label for="step">Potential step between equipotentials</label>
+          <input id="step" type="range" />
+          <output for="step" id="step-out"></output>
+        </div>
+        <div class="buttons spaced">
+          <button id="share" type="button">Copy link</button>
+          <button id="png" type="button">Save PNG</button>
+        </div>
+      </fieldset>
+    </section>
+  </main>
+
+  <footer>
+    <p>Units with the Coulomb constant set to 1. Point charges have potential q/r; line charges, which stand for infinite rods crossing the page, have potential −q ln r, measured from zero at unit distance. Field lines are traced with fourth-order Runge–Kutta from whichever sign holds more charge, and null points are found by Newton's method. Source on <a href="https://github.com/fushanbobfan/fieldlines">GitHub</a>.</p>
+  </footer>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
