@@ -26,7 +26,7 @@
           <button id="clear" type="button">Clear all</button>
         </div>
       </div>
-      <p class="hint">Click empty space to place a charge, drag a charge to move it, right-click or <kbd>Shift</kbd>-click it to remove it. With the picture focused: arrow keys move the selected charge (<kbd>Shift</kbd> for bigger steps), <kbd>[</kbd> and <kbd>]</kbd> shrink and grow it, <kbd>F</kbd> flips its sign, <kbd>Delete</kbd> removes it, <kbd>.</kbd> selects the next one, <kbd>M</kbd> switches point and line charges, <kbd>G</kbd> shows or hides the Gaussian surface.</p>
+      <p class="hint">Click empty space to place a charge, drag a charge to move it, right-click or <kbd>Shift</kbd>-click it to remove it. With the picture focused: arrow keys move the selected charge (<kbd>Shift</kbd> for bigger steps), <kbd>[</kbd> and <kbd>]</kbd> shrink and grow it, <kbd>F</kbd> flips its sign, <kbd>Delete</kbd> removes it, <kbd>.</kbd> selects the next one, <kbd>M</kbd> switches point and line charges, <kbd>G</kbd> shows or hides the Gaussian surface, <kbd>L</kbd> turns launch mode on and off, <kbd>O</kbd> sends a test charge into orbit around the selected charge.</p>
       <p id="probe" class="probe" aria-live="off">Point at the picture to read the potential and field there.</p>
       <p id="tally" class="note"></p>
     </section>
@@ -75,6 +75,26 @@
         </div>
         <p id="gauss-text" class="note" aria-live="polite"></p>
         <p class="note">Drag the square handle to move the surface and its rim to resize it. Solid rim: the field leaves; dashed rim: it enters.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Test charges</legend>
+        <div class="segmented" role="radiogroup" aria-label="Sign of test charges">
+          <label><input type="radio" name="test-sign" value="1" checked /> Positive</label>
+          <label><input type="radio" name="test-sign" value="-1" /> Negative</label>
+        </div>
+        <div class="buttons">
+          <button id="launch" type="button" aria-pressed="false">Launch mode</button>
+          <button id="orbit" type="button" disabled>Orbit the selected charge</button>
+          <button id="clear-tests" type="button" disabled>Clear test charges</button>
+        </div>
+        <div class="slider">
+          <label for="speed">Simulation speed</label>
+          <input id="speed" type="range" min="1" max="10" step="1" value="3" />
+          <output for="speed" id="speed-out">3</output>
+        </div>
+        <p id="test-text" class="note" aria-live="polite"></p>
+        <p class="note">In launch mode, press on the picture and drag to set the launch velocity, then let go; a click without dragging releases the charge from rest. Test charges feel the field but do not change it.</p>
       </fieldset>
 
       <fieldset>

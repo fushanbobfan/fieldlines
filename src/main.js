@@ -5,6 +5,7 @@ import { traceAll, lineTally } from './lines.js';
 import { contourLevels, potentialRange, marchingSquares } from './contours.js';
 import { findNullPoints } from './neutral.js';
 import { gaussReport, outwardSigns } from './gauss.js';
+import { makeParticle, advance, energyDrift } from './particle.js';
 import { SCENES, SCENE_ORDER, sceneCharges } from './scenes.js';
 import { RANGES, LAYERS, MAX_CHARGES, CHARGE, clampSettings, clampCharge, toHash, fromHash, defaults } from './params.js';
 import {
@@ -16,6 +17,10 @@ import {
   drawNulls,
   drawProbe,
   drawGaussSurface,
+  drawParticles,
+  drawAim,
+  AIM_SCALE,
+  TEST_COLORS,
   chargeRadius,
   formatNumber,
 } from './render.js';
@@ -38,6 +43,15 @@ let probe = null; // world point under the pointer
 let view = makeView(16, 9);
 let picture = null; // computed layers for the current settings and size
 let pending = false;
+let particles = [];
+let testSign = 1;
+let launchMode = false;
+let aim = null; // { x, y, vx, vy, pointerId } while a launch is being aimed
+let simSpeed = 3;
+let running = false;
+let lastFrame = 0;
+
+const MAX_PARTICLES = 12;
 
 // --- computation -------------------------------------------------------------
 
@@ -86,15 +100,21 @@ function draw() {
   if (layers.lines) drawFieldLines(ctx, view, picture.lines);
   if (layers.nulls) drawNulls(ctx, view, picture.nulls);
   if (picture.gauss) drawGaussSurface(ctx, view, settings.gauss, picture.gauss.signs);
+  drawParticles(ctx, view, particles);
+  if (aim) drawAim(ctx, view, aim, testSign > 0 ? TEST_COLORS.positive : TEST_COLORS.negative);
   drawCharges(ctx, view, settings.charges, selected);
-  if (probe && !drag) {
+  if (probe && !drag && !aim) {
     const [ex, ey] = fieldAt(settings.charges, settings.mode, probe[0], probe[1]);
     drawProbe(ctx, view, probe[0], probe[1], ex, ey);
   }
 }
 
 function refresh({ recompute = true, hash = true } = {}) {
-  if (recompute) picture = null;
+  if (recompute) {
+    picture = null;
+    // The field under the test charges changed, so their energy is measured afresh.
+    for (const p of particles) p.energy0 = null;
+  }
   if (pending) return;
   pending = true;
   requestAnimationFrame(() => {
@@ -123,6 +143,7 @@ function updateText() {
   $('status').textContent = parts.join(' · ');
   $('tally').textContent = tallyText();
   $('gauss-text').textContent = gaussText();
+  updateTestText();
   updateProbeText();
   updateSelectionControls();
 }
@@ -170,6 +191,28 @@ function gaussText() {
   return text;
 }
 
+function updateTestText() {
+  $('clear-tests').disabled = particles.length === 0;
+  if (!particles.length) {
+    $('test-text').textContent = '';
+    return;
+  }
+  const moving = particles.filter((p) => p.alive).length;
+  const captured = particles.filter((p) => p.fate === 'captured').length;
+  const escaped = particles.filter((p) => p.fate === 'escaped').length;
+  const parts = [`${moving} moving`];
+  if (captured) parts.push(`${captured} captured by a charge`);
+  if (escaped) parts.push(`${escaped} gone off the picture`);
+  const newest = particles[particles.length - 1];
+  let text = `Test charges: ${parts.join(', ')}.`;
+  if (newest.alive && newest.energy0 !== null) {
+    const drift = energyDrift(newest, settings.charges, settings.mode);
+    const pct = Math.abs(drift) < 5e-7 ? '0.0000' : (drift * 100).toFixed(4).replace('-', '−');
+    text += ` Newest: time ${newest.t.toFixed(1)}, energy change ${pct}%.`;
+  }
+  $('test-text').textContent = text;
+}
+
 function updateProbeText() {
   const el = $('probe');
   if (!probe) return;
@@ -191,6 +234,58 @@ function updateSelectionControls() {
   $('size').value = String(size);
   $('size-out').textContent = c ? signed(c.q) : String(size);
   $('gauss-centre').disabled = !c;
+  $('orbit').disabled = !c;
+}
+
+// --- test charges --------------------------------------------------------------
+
+function addParticle(p) {
+  particles.push(p);
+  if (particles.length > MAX_PARTICLES) particles.shift();
+  startRunning();
+}
+
+function startRunning() {
+  if (running) return;
+  running = true;
+  lastFrame = performance.now();
+  requestAnimationFrame(tick);
+}
+
+let textTimer = 0;
+
+function tick(now) {
+  const elapsed = Math.min(0.05, (now - lastFrame) / 1000);
+  lastFrame = now;
+  const bounds = { x0: view.x0 * 3, x1: view.x1 * 3, y0: view.y0 * 3, y1: view.y1 * 3 };
+  for (const p of particles) advance(settings.charges, settings.mode, p, elapsed * simSpeed, bounds);
+  draw();
+  textTimer += elapsed;
+  if (textTimer > 0.25 || !particles.some((p) => p.alive)) {
+    textTimer = 0;
+    updateTestText();
+  }
+  running = particles.some((p) => p.alive);
+  if (running) requestAnimationFrame(tick);
+}
+
+function setLaunchMode(on) {
+  launchMode = on;
+  $('launch').setAttribute('aria-pressed', String(on));
+  canvas.classList.toggle('launching', on);
+}
+
+// Starts a test charge of the opposite sign on a circular orbit around the
+// selected charge, as if that charge were alone.
+function orbitSelected() {
+  const c = settings.charges[selected];
+  if (!c) return;
+  const r = 1.2 + 0.3 * Math.sqrt(Math.abs(c.q));
+  const q = -Math.sign(c.q);
+  // q Q / r^2 = v^2 / r for points, q Q / r = v^2 / r for lines.
+  const v = settings.mode === 'line' ? Math.sqrt(Math.abs(c.q)) : Math.sqrt(Math.abs(c.q) / r);
+  addParticle(makeParticle(c.x + r, c.y, 0, v, q));
+  updateTestText();
 }
 
 // --- editing -----------------------------------------------------------------
@@ -248,6 +343,13 @@ canvas.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return;
   canvas.focus();
   const part = hit < 0 ? surfacePartAt(px, py) : null;
+  if (launchMode && hit < 0 && !part) {
+    const [x, y] = view.toWorld(px, py);
+    aim = { x, y, vx: 0, vy: 0, pointerId: e.pointerId };
+    canvas.setPointerCapture(e.pointerId);
+    refresh({ recompute: false, hash: false });
+    return;
+  }
   if (part) {
     const [cx, cy] = view.toScreen(settings.gauss.x, settings.gauss.y);
     drag = { kind: part, dx: px - cx, dy: py - cy, pointerId: e.pointerId };
@@ -279,6 +381,13 @@ canvas.addEventListener('pointerdown', (e) => {
 
 canvas.addEventListener('pointermove', (e) => {
   const [px, py] = localPoint(e);
+  if (aim && e.pointerId === aim.pointerId) {
+    const [x, y] = view.toWorld(px, py);
+    aim.vx = (x - aim.x) / AIM_SCALE;
+    aim.vy = (y - aim.y) / AIM_SCALE;
+    refresh({ recompute: false, hash: false });
+    return;
+  }
   if (drag && e.pointerId === drag.pointerId && drag.kind !== 'charge') {
     const g = settings.gauss;
     if (drag.kind === 'move') {
@@ -306,6 +415,12 @@ canvas.addEventListener('pointermove', (e) => {
 });
 
 function endDrag(e) {
+  if (aim && e.pointerId === aim.pointerId) {
+    if (e.type === 'pointerup') addParticle(makeParticle(aim.x, aim.y, aim.vx, aim.vy, testSign));
+    aim = null;
+    refresh({ recompute: false, hash: false });
+    return;
+  }
   if (!drag || e.pointerId !== drag.pointerId) return;
   drag = null;
   canvas.classList.remove('dragging');
@@ -364,6 +479,10 @@ canvas.addEventListener('keydown', (e) => {
     if (n) select((selected + 1) % n);
   } else if (e.key === 'Escape') {
     select(-1);
+  } else if (e.key === 'l' || e.key === 'L') {
+    setLaunchMode(!launchMode);
+  } else if (e.key === 'o' || e.key === 'O') {
+    orbitSelected();
   } else if (e.key === 'g' || e.key === 'G') {
     settings.gauss.on = !settings.gauss.on;
     syncGaussControls();
@@ -485,6 +604,23 @@ $('radius').addEventListener('input', () => {
   settings.gauss.r = Number($('radius').value);
   syncGaussControls();
   edited();
+});
+
+for (const r of document.querySelectorAll('input[name="test-sign"]')) {
+  r.addEventListener('change', () => {
+    testSign = Number(r.value);
+  });
+}
+
+$('launch').addEventListener('click', () => setLaunchMode(!launchMode));
+$('orbit').addEventListener('click', orbitSelected);
+$('clear-tests').addEventListener('click', () => {
+  particles = [];
+  refresh({ recompute: false, hash: false });
+});
+$('speed').addEventListener('input', () => {
+  simSpeed = Number($('speed').value);
+  $('speed-out').textContent = String(simSpeed);
 });
 
 $('gauss-on').addEventListener('change', () => {
