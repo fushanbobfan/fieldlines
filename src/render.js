@@ -178,9 +178,10 @@ export function drawCharges(ctx, view, charges, selected) {
     ctx.strokeStyle = i === selected ? '#ffd27a' : 'rgba(255, 255, 255, 0.8)';
     ctx.stroke();
     ctx.fillStyle = '#fff';
-    ctx.font = '600 13px system-ui, sans-serif';
     const mag = Math.abs(c.q);
-    ctx.fillText((c.q > 0 ? '+' : '−') + (mag === 1 ? '' : String(mag)), x, y + 0.5);
+    const label = (c.q > 0 ? '+' : '−') + (mag === 1 ? '' : String(mag));
+    ctx.font = `600 ${label.length > 3 ? 10 : label.length > 2 ? 11 : 13}px system-ui, sans-serif`;
+    ctx.fillText(label, x, y + 0.5);
   });
   ctx.restore();
 }
