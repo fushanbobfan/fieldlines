@@ -71,6 +71,18 @@ dashed where it enters: a charge outside makes it enter on the near side
 and leave on the far side, and the panel shows those contributions
 cancelling.
 
+**Test charges.** Pick *Single charge*, select it and press `O` (or
+*Orbit the selected charge*): a negative test charge sets off on a
+circle around it. Turn on *Launch mode* and drag on the picture to fire
+more. Around point charges a bound test charge traces a closed ellipse,
+as a planet does around the Sun, because the force falls off as 1/r².
+Switch to line charges and the same launch traces a rosette that never
+closes: by Bertrand's theorem only the inverse-square and the linear
+force laws close every bound orbit. The panel shows how much the newest
+charge's kinetic plus potential energy has changed since launch, which
+stays near zero. Test charges feel the field without changing it; when a
+charge is moved under them, their energy is measured afresh.
+
 ## Controls
 
 - Click empty space to place a charge with the chosen sign and size.
@@ -79,7 +91,11 @@ cancelling.
   bigger steps), `[` and `]` shrink and grow it, `F` flips its sign,
   `Delete` removes it, `.` selects the next one, `Escape` deselects, `M`
   switches between point and line charges, `G` shows or hides the
-  Gaussian surface.
+  Gaussian surface, `L` turns launch mode on and off, `O` sends a test
+  charge into orbit around the selected charge.
+- In launch mode, press and drag on empty space to aim a test charge (the
+  dashed line is its launch velocity) and let go to fire it; a click
+  without dragging releases it from rest.
 - The size slider sets the size of new charges, or of the selected one.
 - Lines per unit charge sets the line density; the potential step sets the
   potential difference between neighbouring equipotentials, so they crowd
@@ -121,6 +137,14 @@ surface make the integrand sharp. Charges within 0.1 units of the surface
 are flagged, because there the flux is ill-defined and the quadrature
 cannot be trusted.
 
+Test charges (`src/particle.js`) have unit mass and follow a = qE with
+fourth-order Runge–Kutta. The step is a small fraction of the time it
+would take to reach the nearest charge at the current speed or under the
+current acceleration, so close passes are taken in tiny steps and slow
+drifts far out in large ones. A test charge that comes within 0.06 units
+of a fixed charge is captured; one that leaves three times the view is
+dropped.
+
 ## Accessibility
 
 The picture is keyboard operable: focus it with Tab, then select, move,
@@ -128,7 +152,8 @@ resize, flip and remove charges with the keys above. The status line, the
 line tally and the Gauss readout are plain text, and the status line and
 Gauss readout are announced when they change. The Gaussian surface can be
 placed without a pointer: centre it on the selected charge and set its
-radius with the slider. Every control is a native input with a label.
+radius with the slider. Test charges can be started from the keyboard
+with `O`, which puts one in orbit around the selected charge. Every control is a native input with a label.
 
 ## License
 

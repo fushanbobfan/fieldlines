@@ -85,6 +85,10 @@ canvas {
   touch-action: none;
 }
 
+#plot.launching {
+  cursor: cell;
+}
+
 #plot.over-charge {
   cursor: grab;
 }

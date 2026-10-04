@@ -255,3 +255,58 @@ export function drawGaussSurface(ctx, view, surface, signs) {
   ctx.fillRect(cx - 5, cy - 5, 10, 10);
   ctx.restore();
 }
+
+export const TEST_COLORS = { positive: '#ffd27a', negative: '#7fe0b0' };
+
+export function drawParticles(ctx, view, particles) {
+  ctx.save();
+  ctx.lineWidth = 1.5;
+  ctx.lineJoin = 'round';
+  for (const p of particles) {
+    const color = p.q > 0 ? TEST_COLORS.positive : TEST_COLORS.negative;
+    const t = p.trail;
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 0.75;
+    ctx.beginPath();
+    let [sx, sy] = view.toScreen(t[0], t[1]);
+    ctx.moveTo(sx, sy);
+    for (let i = 2; i < t.length; i += 2) {
+      [sx, sy] = view.toScreen(t[i], t[i + 1]);
+      ctx.lineTo(sx, sy);
+    }
+    [sx, sy] = view.toScreen(p.x, p.y);
+    ctx.lineTo(sx, sy);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(sx, sy, p.alive ? 4.5 : 3, 0, 2 * Math.PI);
+    if (p.alive) ctx.fill();
+    else ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// World units of drag per unit of launch speed.
+export const AIM_SCALE = 2;
+
+// The rubber band shown while aiming a launch: from the start point along
+// the launch velocity.
+export function drawAim(ctx, view, aim, color) {
+  const [ax, ay] = view.toScreen(aim.x, aim.y);
+  const [bx, by] = view.toScreen(aim.x + aim.vx * AIM_SCALE, aim.y + aim.vy * AIM_SCALE);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(bx, by);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(ax, ay, 4.5, 0, 2 * Math.PI);
+  ctx.fill();
+  ctx.restore();
+}
